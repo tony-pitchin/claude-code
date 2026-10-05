@@ -38,23 +38,31 @@ Note: Still review Claude generated PR's.
    Agent 4: Opus bug agent (parallel subagent with agent 3)
    Look for problems that exist in the introduced code. This could be security issues, incorrect logic, etc. Only look for issues that fall within the changed code.
 
-   **CRITICAL: We only want HIGH SIGNAL issues.** Flag issues where:
+   **CRITICAL: Score every issue on a 0-100 confidence scale before listing it.** Flag issues where:
    - The code will fail to compile or parse (syntax errors, type errors, missing imports, unresolved references)
    - The code will definitely produce wrong results regardless of inputs (clear logic errors)
    - Clear, unambiguous CLAUDE.md violations where you can quote the exact rule being broken
+   - Security issues explicitly called out in CLAUDE.md (e.g. logging auth headers, echoing tokens)
+
+   Confidence scale:
+   - 0-25:  Likely false positive or pre-existing issue
+   - 26-50: Minor nitpick not explicitly in CLAUDE.md
+   - 51-75: Valid but low-impact issue
+   - 76-90: Important issue requiring attention
+   - 91-100: Critical bug or explicit CLAUDE.md violation
 
    Do NOT flag:
-   - Code style or quality concerns
+   - Code style or quality concerns not in CLAUDE.md
    - Potential issues that depend on specific inputs or state
    - Subjective suggestions or improvements
 
    If you are not certain an issue is real, do not flag it. False positives erode trust and waste reviewer time.
 
-   In addition to the above, each subagent should be told the PR title and description. This will help provide context regarding the author's intent.
+   **Each issue MUST include a confidence score (0-100) in its output.** In addition to the above, each subagent should be told the PR title and description. This will help provide context regarding the author's intent.
 
-5. For each issue found in the previous step by agents 3 and 4, launch parallel subagents to validate the issue. These subagents should get the PR title and description along with a description of the issue. The agent's job is to review the issue to validate that the stated issue is truly an issue with high confidence. For example, if an issue such as "variable is not defined" was flagged, the subagent's job would be to validate that is actually true in the code. Another example would be CLAUDE.md issues. The agent should validate that the CLAUDE.md rule that was violated is scoped for this file and is actually violated. Use Opus subagents for bugs and logic issues, and sonnet agents for CLAUDE.md violations.
+5. For each issue found in the previous step by agents 3 and 4, launch parallel subagents to validate the issue. These subagents should get the PR title and description along with a description of the issue and its confidence score. The agent's job is to review the issue to validate that the stated issue is truly an issue. For example, if an issue such as "variable is not defined" was flagged, the subagent's job would be to validate that is actually true in the code. Another example would be CLAUDE.md issues. The agent should validate that the CLAUDE.md rule that was violated is scoped for this file and is actually violated. Use Opus subagents for bugs and logic issues, and sonnet agents for CLAUDE.md violations.
 
-6. Filter out any issues that were not validated in step 5. This step will give us our list of high signal issues for our review.
+6. Filter out any issues that were not validated in step 5. Then apply the confidence threshold: **keep only issues with confidence > 50**. This step will give us our list of issues for our review.
 
 7. Output a summary of the review findings to the terminal:
    - If issues were found, list each issue with a brief description.
@@ -82,8 +90,9 @@ Use this list when evaluating issues in Steps 4 and 5 (these are false positives
 - Something that appears to be a bug but is actually correct
 - Pedantic nitpicks that a senior engineer would not flag
 - Issues that a linter will catch (do not run the linter to verify)
-- General code quality concerns (e.g., lack of test coverage, general security issues) unless explicitly required in CLAUDE.md
+- General code quality concerns (e.g., lack of test coverage) unless explicitly required in CLAUDE.md
 - Issues mentioned in CLAUDE.md but explicitly silenced in the code (e.g., via a lint ignore comment)
+- Security issues that are explicitly called out in CLAUDE.md (these should be flagged regardless)
 
 Notes:
 
